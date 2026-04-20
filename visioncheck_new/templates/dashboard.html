@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — Oculux{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="fw-bold mb-1">Good {{ 'morning' if now.hour < 12 else ('afternoon' if now.hour < 17 else 'evening') }}, {{ current_user.name.split()[0] }} 👋</h4>
+    <p class="text-secondary small mb-0">Here's your eye health overview</p>
+  </div>
+  <a href="{{ url_for('eye_test') }}" class="btn btn-primary fw-semibold"><i class="bi bi-play-circle me-2"></i>Start Eye Test</a>
+</div>
+
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-heart-pulse-fill"></i></div>
+      <div class="stat-value">{{ latest_test.eye_health_score if latest_test else '—' }}{% if latest_test %}<small class="text-secondary fs-6">/100</small>{% endif %}</div>
+      <div class="stat-label">Eye Health Score</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-eye"></i></div>
+      <div class="stat-value">{{ latest_test.snellen_re if latest_test else '—' }}</div>
+      <div class="stat-label">Right Eye Acuity</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-eye"></i></div>
+      <div class="stat-value">{{ latest_test.snellen_le if latest_test else '—' }}</div>
+      <div class="stat-label">Left Eye Acuity</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-heart-fill"></i></div>
+      <div class="stat-value">{{ wishlist_count }}</div>
+      <div class="stat-label">Saved Frames</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Latest Prescription -->
+  <div class="col-lg-5">
+    <div class="card card-dark h-100">
+      <div class="card-header-dark d-flex align-items-center justify-content-between">
+        <span class="fw-semibold"><i class="bi bi-clipboard2-pulse-fill me-2 text-primary"></i>Latest Prescription</span>
+        {% if latest_rx %}<span class="badge bg-primary bg-opacity-20 text-primary">{{ latest_rx.date.strftime('%d %b %Y') }}</span>{% endif %}
+      </div>
+      <div class="card-body">
+        {% if latest_rx %}
+        <div class="table-responsive">
+          <table class="table table-borderless table-sm mb-0">
+            <thead><tr class="text-secondary small"><th></th><th>SPH</th><th>CYL</th><th>AXIS</th><th>ADD</th><th>PD</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="text-warning fw-semibold">RE</td>
+                <td>{{ '+%.2f'|format(latest_rx.sph_re) if latest_rx.sph_re else '—' }}</td>
+                <td>{{ '%.2f'|format(latest_rx.cyl_re) if latest_rx.cyl_re else '—' }}</td>
+                <td>{{ latest_rx.axis_re or '—' }}°</td>
+                <td>{{ '+%.2f'|format(latest_rx.add_re) if latest_rx.add_re else '—' }}</td>
+                <td>{{ latest_rx.pd_re or '—' }}</td>
+              </tr>
+              <tr>
+                <td class="text-info fw-semibold">LE</td>
+                <td>{{ '+%.2f'|format(latest_rx.sph_le) if latest_rx.sph_le else '—' }}</td>
+                <td>{{ '%.2f'|format(latest_rx.cyl_le) if latest_rx.cyl_le else '—' }}</td>
+                <td>{{ latest_rx.axis_le or '—' }}°</td>
+                <td>{{ '+%.2f'|format(latest_rx.add_le) if latest_rx.add_le else '—' }}</td>
+                <td>{{ latest_rx.pd_le or '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-secondary small mt-2 mb-0"><i class="bi bi-person me-1"></i>{{ latest_rx.optometrist or 'Not specified' }}</p>
+        {% else %}
+        <div class="text-center py-3">
+          <i class="bi bi-clipboard2-plus display-6 text-secondary"></i>
+          <p class="text-secondary small mt-2">No prescription yet</p>
+          <a href="{{ url_for('prescription') }}" class="btn btn-sm btn-outline-primary">Add Prescription</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Conditions -->
+  <div class="col-lg-7">
+    <div class="card card-dark h-100">
+      <div class="card-header-dark">
+        <span class="fw-semibold"><i class="bi bi-shield-check me-2 text-success"></i>Detected Conditions</span>
+      </div>
+      <div class="card-body">
+        {% if conditions %}
+        <div class="row g-2">
+          {% for c in conditions %}
+          <div class="col-6">
+            <div class="condition-badge severity-{{ c.severity }}">
+              <span class="condition-icon">{{ c.icon }}</span>
+              <div>
+                <div class="fw-semibold">{{ c.name }}</div>
+                <div class="text-secondary small">{{ c.severity|title }}</div>
+              </div>
+              <span class="ms-auto badge severity-badge-{{ c.severity }}">{{ c.severity }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-3">
+          <i class="bi bi-check-circle-fill display-6 text-success"></i>
+          <p class="text-secondary small mt-2">No conditions detected — add a prescription to see your eye health analysis</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3">
+  <!-- Power Trend -->
+  <div class="col-lg-8">
+    <div class="card card-dark">
+      <div class="card-header-dark">
+        <span class="fw-semibold"><i class="bi bi-graph-up me-2 text-info"></i>Prescription Power Trend</span>
+      </div>
+      <div class="card-body">
+        {% if all_rx|length > 0 %}
+        <canvas id="trendChart" height="80"></canvas>
+        {% else %}
+        <div class="text-center py-4 text-secondary"><i class="bi bi-graph-up display-6"></i><p class="mt-2 small">Add prescriptions to see your power trend over time</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <!-- Eye Diagram -->
+  <div class="col-lg-4">
+    <div class="card card-dark">
+      <div class="card-header-dark">
+        <span class="fw-semibold"><i class="bi bi-eye me-2 text-primary"></i>Eye Health Map</span>
+      </div>
+      <div class="card-body d-flex flex-column align-items-center gap-3">
+        {% macro eye_svg(label, acuity, color) %}
+        <div class="text-center">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <ellipse cx="45" cy="45" rx="42" ry="28" fill="none" stroke="rgba(15,23,42,.1)" stroke-width="2"/>
+            <ellipse cx="45" cy="45" rx="42" ry="28" fill="none" stroke="{{ color }}" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="45" cy="45" r="16" fill="{{ color }}" fill-opacity=".15" stroke="{{ color }}" stroke-width="1.5"/>
+            <circle cx="45" cy="45" r="7" fill="{{ color }}" fill-opacity=".6"/>
+            <circle cx="48" cy="42" r="2" fill="white" fill-opacity=".9"/>
+          </svg>
+          <div class="fw-semibold" style="font-size:.8rem">{{ label }}</div>
+          <div style="font-size:.72rem;color:var(--text-muted)">{{ acuity or 'Not tested' }}</div>
+        </div>
+        {% endmacro %}
+        <div class="d-flex gap-4">
+          {{ eye_svg('Right Eye', latest_test.snellen_re if latest_test else None, '#6366f1') }}
+          {{ eye_svg('Left Eye', latest_test.snellen_le if latest_test else None, '#10b981') }}
+        </div>
+        {% if latest_test %}
+        <div class="w-100">
+          <div class="d-flex justify-content-between small text-secondary mb-1">
+            <span>Overall Health Score</span><span class="fw-semibold">{{ latest_test.eye_health_score }}/100</span>
+          </div>
+          <div class="progress" style="height:6px">
+            <div class="progress-bar {% if latest_test.eye_health_score >= 80 %}bg-success{% elif latest_test.eye_health_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+              style="width:{{ latest_test.eye_health_score }}%"></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const now = new Date();
+{% if all_rx|length > 0 %}
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+  type: 'line',
+  data: {
+    labels: {{ trend_labels }},
+    datasets: [
+      { label: 'Right Eye (SPH)', data: {{ trend_re }}, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)', tension: .4, fill: true, pointBackgroundColor: '#6366f1', pointRadius: 5 },
+      { label: 'Left Eye (SPH)',  data: {{ trend_le }}, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.1)',  tension: .4, fill: true, pointBackgroundColor: '#10b981', pointRadius: 5 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { labels: { color: '#475569', boxWidth: 12 } }, tooltip: { backgroundColor: '#fff', titleColor:'#0f172a', bodyColor:'#475569', borderColor:'rgba(37,99,235,.2)', borderWidth:1 } },
+    scales: {
+      x: { grid: { color: 'rgba(15,23,42,.06)' }, ticks: { color: '#64748b' } },
+      y: { grid: { color: 'rgba(15,23,42,.06)' }, ticks: { color: '#64748b' },
+           title: { display: true, text: 'Dioptres (D)', color: '#64748b' } }
+    }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

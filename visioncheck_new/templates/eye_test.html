@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% block title %}Eye Test — Oculux{% endblock %}
+{% block content %}
+
+<!-- Instruction overlay -->
+<div id="instructionOverlay" class="test-overlay active">
+  <div class="test-overlay-card">
+    <div class="text-center mb-4">
+      <div class="brand-icon mx-auto mb-3" style="width:64px;height:64px;font-size:2rem"><i class="bi bi-eye-fill"></i></div>
+      <h4 class="fw-bold" style="color:var(--text-primary)">Eye Test Instructions</h4>
+      <p style="color:var(--text-secondary)">Please follow these steps for accurate results</p>
+    </div>
+    <div class="instruction-list">
+      <div class="instruction-item"><div class="instruction-num">1</div><div><strong>Visual Acuity</strong> uses a calibrated Tumbling-E test — you'll set your screen PPI and viewing distance first</div></div>
+      <div class="instruction-item"><div class="instruction-num">2</div><div><strong>Colour Vision</strong> uses corrected Ishihara plates — type the number you see within 5 seconds</div></div>
+      <div class="instruction-item"><div class="instruction-num">3</div><div>The test includes <strong>5 sub-tests</strong> — takes about 6–8 minutes total</div></div>
+      <div class="instruction-item"><div class="instruction-num">4</div><div>Ensure good <strong>ambient lighting</strong> and sit at your normal working distance</div></div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+      <button class="btn btn-outline-secondary flex-fill" onclick="window.history.back()">Cancel</button>
+      <button class="btn btn-primary flex-fill fw-semibold" onclick="startTest()">Begin Test <i class="bi bi-arrow-right ms-1"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- Countdown overlay -->
+<div id="countdownOverlay" class="test-overlay">
+  <div class="text-center">
+    <p style="color:var(--text-primary);font-size:1.1rem;margin-bottom:.5rem" id="countdownLabel"></p>
+    <div id="countdownNum" class="countdown-num">5</div>
+    <p style="color:var(--text-secondary)" id="eyeInstruction"></p>
+  </div>
+</div>
+
+<!-- Result overlay -->
+<div id="resultOverlay" class="test-overlay">
+  <div class="test-overlay-card" style="max-width:500px">
+    <div class="text-center mb-3">
+      <div class="display-4 mb-2">🎉</div>
+      <h4 class="fw-bold" style="color:var(--text-primary)">Test Complete!</h4>
+      <p style="color:var(--text-secondary)" class="small">Your eye health results summary</p>
+    </div>
+    <div id="resultContent"></div>
+    <div class="d-flex gap-2 mt-4">
+      <button class="btn btn-outline-secondary flex-fill" onclick="location.reload()">Redo Test</button>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-primary flex-fill fw-semibold">View Dashboard</a>
+    </div>
+  </div>
+</div>
+
+<!-- Test progress header -->
+<div id="testHeader" class="d-none mb-4">
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <div>
+      <h5 class="fw-bold mb-0" style="color:var(--text-primary)" id="testTitle">Visual Acuity</h5>
+      <p style="color:var(--text-secondary)" class="small mb-0" id="testSubtitle"></p>
+    </div>
+    <div class="ms-auto text-end">
+      <div class="small" style="color:var(--text-muted)">Test <span id="testNum">1</span> of 5</div>
+    </div>
+  </div>
+  <div class="progress mb-2" style="height:4px">
+    <div class="progress-bar bg-primary" id="testProgress" style="width:0%;transition:width .5s"></div>
+  </div>
+  <div class="d-flex justify-content-between">
+    {% for name in ['Acuity','Colour','Astigmatism','Contrast','Near'] %}
+    <div class="test-step" id="step{{ loop.index }}">
+      <div class="test-step-dot"></div>
+      <div class="test-step-label">{{ name }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Test containers -->
+<div id="testArea" class="d-none">
+
+  <!-- TEST 1: Calibrated Tumbling-E Visual Acuity -->
+  <div id="test1" class="test-panel">
+
+    <!-- Step A: Calibration -->
+    <div id="acuity-step-cal">
+      <div class="card-dark mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary" data-step-badge>Acuity</span>
+            <span class="fw-semibold" style="color:var(--text-primary)">Step 1 — Screen Calibration</span>
+          </div>
+          <p class="small mb-3" style="color:var(--text-secondary)">Place a standard credit/debit card (85.6 mm wide) against your screen. Drag the slider until the rectangle below matches the card's width exactly — this calibrates real angular sizes.</p>
+
+          <div style="display:flex;justify-content:center;margin:1rem 0">
+            <div class="cal-card-visual" id="cal-card" style="width:200px">
+              <span style="font-size:.65rem;color:#bbb">VISA / Mastercard</span>
+              <div class="cal-stripe">
+                <span style="background:#1a3a8a"></span>
+                <span style="background:#e5c840"></span>
+                <span style="background:#e52020"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <label class="small" style="color:var(--text-muted);min-width:90px">Card width</label>
+            <input type="range" class="form-range flex-grow-1" id="cal-slider" min="80" max="500" value="200" oninput="updateCal(this.value)">
+            <span style="font-family:monospace;font-size:.85rem;min-width:50px;text-align:right;color:var(--text-secondary)" id="cal-val">200 px</span>
+          </div>
+          <p class="small" style="color:var(--text-muted)">
+            Calculated PPI: <strong id="ppi-out" style="color:var(--text-primary)">56 PPI</strong> &nbsp;·&nbsp;
+            No card? Enter PPI manually:
+            <input type="number" id="ppi-manual" min="60" max="400" placeholder="e.g. 96"
+              style="width:70px;padding:2px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:.8rem;background:var(--bg-elevated);color:var(--text-primary)"
+              oninput="overridePpi(this.value)">
+          </p>
+        </div>
+      </div>
+      <div class="d-flex justify-content-end">
+        <button class="btn btn-primary" onclick="acuityGoStep('dist')">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step B: Distance -->
+    <div id="acuity-step-dist" style="display:none">
+      <div class="card-dark mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary" data-step-badge>Acuity</span>
+            <span class="fw-semibold" style="color:var(--text-primary)">Step 2 — Viewing Distance</span>
+          </div>
+          <p class="small mb-3" style="color:var(--text-secondary)">How far is your face from the screen right now?</p>
+          <div class="dist-grid">
+            <button class="dist-btn" onclick="setAcuityDist(30,this)">30 cm<br><span style="font-size:.7rem;color:var(--text-muted)">Very close</span></button>
+            <button class="dist-btn" onclick="setAcuityDist(45,this)">45 cm<br><span style="font-size:.7rem;color:var(--text-muted)">Laptop</span></button>
+            <button class="dist-btn" onclick="setAcuityDist(60,this)">60 cm<br><span style="font-size:.7rem;color:var(--text-muted)">Desktop</span></button>
+            <button class="dist-btn" onclick="setAcuityDist(90,this)">90 cm<br><span style="font-size:.7rem;color:var(--text-muted)">Arm's length</span></button>
+          </div>
+          <p class="small mt-1" style="color:var(--text-muted)">
+            Or enter exact (cm):
+            <input type="number" id="dist-manual" min="20" max="300" placeholder="e.g. 55"
+              style="width:80px;padding:3px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:.85rem;background:var(--bg-elevated);color:var(--text-primary)"
+              oninput="setAcuityDist(parseInt(this.value),null)">
+          </p>
+        </div>
+      </div>
+      <div class="d-flex gap-2 justify-content-between">
+        <button class="btn btn-outline-secondary" onclick="acuityGoStep('cal')">← Back</button>
+        <button class="btn btn-primary" id="btn-acuity-start" onclick="acuityGoStep('test')" disabled>Begin Acuity Test →</button>
+      </div>
+    </div>
+
+    <!-- Step C: Actual Tumbling-E test -->
+    <div id="acuity-step-test" style="display:none">
+      <div class="card-dark mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary" data-step-badge>Acuity</span>
+            <span class="fw-semibold" style="color:var(--text-primary)">Tumbling-E Visual Acuity</span>
+            <span class="ms-auto badge" id="eye-indicator" style="background:rgba(37,99,235,.1);color:var(--accent)">Right Eye</span>
+          </div>
+
+          <div class="level-progress-row mt-2">
+            <div class="level-progress-bar"><div class="level-progress-fill" id="te-pbar" style="width:0%"></div></div>
+            <div class="level-progress-label" id="te-pcount">Level 1 / 8</div>
+          </div>
+
+          <div style="text-align:center;margin-bottom:.25rem">
+            <span style="font-family:monospace;font-size:.75rem;color:var(--text-muted)" id="te-acuity-label">20/200</span><br>
+            <span style="font-size:.8rem;color:var(--text-muted)" id="te-cover-note">Cover your left eye</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="e-display">
+        <span class="tumbling-e" id="tumbling-e">E</span>
+      </div>
+
+      <p class="text-center small mb-3" style="color:var(--text-muted)">Which direction do the prongs point?</p>
+
+      <div class="direction-grid">
+        <div class="dir-btn placeholder"></div>
+        <div class="dir-btn" id="btn-up"    onclick="checkDir('up')">↑</div>
+        <div class="dir-btn placeholder"></div>
+        <div class="dir-btn" id="btn-left"  onclick="checkDir('left')">←</div>
+        <div class="dir-btn placeholder"></div>
+        <div class="dir-btn" id="btn-right" onclick="checkDir('right')">→</div>
+        <div class="dir-btn placeholder"></div>
+        <div class="dir-btn" id="btn-down"  onclick="checkDir('down')">↓</div>
+        <div class="dir-btn placeholder"></div>
+      </div>
+      <p class="text-center small mt-2" style="color:var(--text-muted)" id="te-attempt-note">Attempt 1 / 3</p>
+    </div>
+
+  </div><!-- /test1 -->
+
+  <!-- TEST 2: Colour Blindness (Corrected Ishihara) -->
+  <div id="test2" class="test-panel d-none">
+    <div class="card-dark mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-success" data-step-badge>Colour</span>
+          <span class="fw-semibold" style="color:var(--text-primary)">Ishihara Colour Vision</span>
+          <span class="ms-auto small" style="color:var(--text-muted)">Plate <span id="plateNum">1</span> of 10</span>
+        </div>
+        <p class="small mb-0" style="color:var(--text-secondary)">Type the number you see in the dot pattern. Type <strong>0</strong> if you see nothing. Press <kbd>Enter</kbd> or wait 5 seconds.</p>
+      </div>
+    </div>
+
+    <div class="cb-plate-wrap">
+      <canvas id="ishiharaCanvas" width="320" height="320" style="border-radius:50%;display:block;box-shadow:0 4px 24px rgba(15,23,42,.12)"></canvas>
+      <div class="cb-timer-badge" id="cbTimer">5</div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3 align-items-center">
+      <input type="text" id="cbAnswer" class="cb-number-input" maxlength="3" placeholder="?" autocomplete="off">
+      <button class="btn btn-primary px-4" onclick="submitCBAnswer()">Submit</button>
+    </div>
+    <div class="text-center mt-2">
+      <button class="btn btn-outline-secondary btn-sm" onclick="cbNoNumber()">Can't see a number</button>
+    </div>
+    <div id="cbFeedback" class="text-center mt-2" style="min-height:24px;font-size:.88rem"></div>
+  </div>
+
+  <!-- TEST 3: Astigmatism Wheel -->
+  <div id="test3" class="test-panel d-none">
+    <div class="card-dark mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-warning text-dark" data-step-badge>Astigmatism</span>
+          <span class="fw-semibold" style="color:var(--text-primary)">Astigmatism Wheel Test</span>
+        </div>
+        <p class="small mb-0" style="color:var(--text-secondary)">Look at the clock-dial below. <strong>Click on the axis that appears darkest or thickest</strong>. If all lines look equal, click "All Equal".</p>
+      </div>
+    </div>
+    <div class="d-flex justify-content-center mb-3">
+      <canvas id="astigCanvas" width="320" height="320"></canvas>
+    </div>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <button class="btn btn-outline-secondary" onclick="astigAllEqual()">All Lines Look Equal</button>
+      <span class="small align-self-center ms-2" style="color:var(--text-muted)" id="astigSelected">No axis selected</span>
+      <button class="btn btn-primary ms-auto" onclick="confirmAstig()"><i class="bi bi-arrow-right me-1"></i>Confirm & Continue</button>
+    </div>
+  </div>
+
+  <!-- TEST 4: Contrast Sensitivity -->
+  <div id="test4" class="test-panel d-none">
+    <div class="card-dark mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-info text-dark" data-step-badge>Contrast</span>
+          <span class="fw-semibold" style="color:var(--text-primary)">Contrast Sensitivity</span>
+        </div>
+        <p class="small mb-0" style="color:var(--text-secondary)">Read each row of letters. Click the <strong>last row you can read clearly</strong>. Letters become progressively lighter.</p>
+      </div>
+    </div>
+    <div id="contrastChart" class="contrast-chart"></div>
+    <p class="small text-center mt-2" style="color:var(--text-muted)">Click the last row you can read</p>
+  </div>
+
+  <!-- TEST 5: Near Vision -->
+  <div id="test5" class="test-panel d-none">
+    <div class="card-dark mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-danger" data-step-badge>Near Vision</span>
+          <span class="fw-semibold" style="color:var(--text-primary)">Near Vision — Jaeger Chart</span>
+        </div>
+        <p class="small mb-0" style="color:var(--text-secondary)">Hold your device at <strong>35 cm</strong>. Click the <strong>smallest text size you can read clearly</strong>.</p>
+      </div>
+    </div>
+    <div id="jaegerChart" class="near-chart"></div>
+    <div class="text-center mt-3">
+      <button class="btn btn-primary fw-semibold px-4" onclick="submitTest()"><i class="bi bi-check-circle me-2"></i>Submit All Results</button>
+    </div>
+  </div>
+
+</div><!-- /testArea -->
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/eye_test.js') }}"></script>
+{% endblock %}

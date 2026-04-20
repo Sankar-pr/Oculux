@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Prescription — Oculux{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-clipboard2-pulse-fill me-2 text-primary"></i>Prescriptions</h4>
+    <p class="text-secondary small mb-0">Manage your optical prescriptions</p>
+  </div>
+  <button class="btn btn-primary ms-auto fw-semibold" data-bs-toggle="modal" data-bs-target="#addRxModal">
+    <i class="bi bi-plus-lg me-1"></i>Add Prescription
+  </button>
+</div>
+
+{% if prescriptions %}
+<div class="row g-3 mb-4">
+  {% for rx in prescriptions %}
+  <div class="col-12">
+    <div class="card card-dark">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between mb-3">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <h6 class="fw-bold mb-0">{{ rx.date.strftime('%d %B %Y') }}</h6>
+              <span class="badge bg-{{ 'danger' if rx.rx_label == 'high' else ('warning text-dark' if rx.rx_label == 'moderate' else 'success') }}">{{ (rx.rx_label or 'mild')|title }} Power</span>
+            </div>
+            <p class="text-secondary small mb-0"><i class="bi bi-person me-1"></i>{{ rx.optometrist or 'No optometrist listed' }}</p>
+          </div>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteRx({{ rx.id }})"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-borderless table-sm mb-2">
+            <thead><tr class="text-secondary" style="font-size:.75rem"><th></th><th>SPH</th><th>CYL</th><th>AXIS</th><th>ADD</th><th>PD</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="fw-semibold" style="color:var(--amber)">RE</td>
+                <td style="color:var(--text-primary)">{{ '+%.2f'|format(rx.sph_re) if rx.sph_re else '—' }}</td>
+                <td style="color:var(--text-primary)">{{ '%.2f'|format(rx.cyl_re) if rx.cyl_re else '—' }}</td>
+                <td style="color:var(--text-primary)">{{ rx.axis_re or '—' }}{% if rx.axis_re %}°{% endif %}</td>
+                <td style="color:var(--text-primary)">{{ '+%.2f'|format(rx.add_re) if rx.add_re else '—' }}</td>
+                <td style="color:var(--text-primary)">{{ rx.pd_re or '—' }}</td>
+              </tr>
+              <tr>
+                <td class="fw-semibold" style="color:var(--accent)">LE</td>
+                <td style="color:var(--text-primary)">{{ '+%.2f'|format(rx.sph_le) if rx.sph_le else '—' }}</td>
+                <td style="color:var(--text-primary)">{{ '%.2f'|format(rx.cyl_le) if rx.cyl_le else '—' }}</td>
+                <td style="color:var(--text-primary)">{{ rx.axis_le or '—' }}{% if rx.axis_le %}°{% endif %}</td>
+                <td style="color:var(--text-primary)">{{ '+%.2f'|format(rx.add_le) if rx.add_le else '—' }}</td>
+                <td style="color:var(--text-primary)">{{ rx.pd_le or '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {% if rx.conditions %}
+          {% set conds = rx.conditions|from_json %}
+          {% if conds %}
+          <div class="d-flex flex-wrap gap-1 mt-2">
+            {% for c in conds %}
+            <span class="badge bg-{{ 'danger' if c.severity == 'high' else ('warning text-dark' if c.severity == 'moderate' else 'secondary') }} bg-opacity-20 border border-opacity-25" style="font-size:.72rem">{{ c.icon }} {{ c.name }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endif %}
+        {% if rx.notes %}<p class="text-secondary small mt-2 mb-0"><i class="bi bi-chat-quote me-1"></i>{{ rx.notes }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card card-dark">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-clipboard2-plus display-4 text-secondary"></i>
+    <h5 mt-3">No prescriptions yet</h5>
+    <p class="text-secondary">Add your first prescription to start tracking your eye health</p>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRxModal"><i class="bi bi-plus-lg me-1"></i>Add Prescription</button>
+  </div>
+</div>
+{% endif %}
+
+<!-- Add Rx Modal -->
+<div class="modal fade" id="addRxModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content ">
+      <div class="modal-header" style="border-color:var(--border-subtle)">
+        <h5 class="modal-title fw-bold"><i class="bi bi-clipboard2-plus me-2 text-primary"></i>Add Prescription</h5>
+        <button type="button" class="btn-close btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="background:var(--bg-surface)">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label text-secondary small">Date</label>
+            <input type="date" id="rx_date" class="form-control " value="{{ now.strftime('%Y-%m-%d') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label text-secondary small">Optometrist</label>
+            <input type="text" id="rx_optometrist" class="form-control " placeholder="Dr. Name">
+          </div>
+        </div>
+        <!-- RE -->
+        <div class="card style="background:var(--bg-elevated)" border-secondary mb-3">
+          <div class="card-body p-3">
+            <h6 class="text-warning fw-semibold mb-3"><i class="bi bi-eye me-1"></i>Right Eye (OD)</h6>
+            <div class="row g-2">
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">SPH</label><input type="number" step="0.25" id="sph_re" class="form-control form-control-sm " placeholder="0.00"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">CYL</label><input type="number" step="0.25" id="cyl_re" class="form-control form-control-sm " placeholder="0.00"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">AXIS</label><input type="number" step="1" min="0" max="180" id="axis_re" class="form-control form-control-sm " placeholder="90"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">ADD</label><input type="number" step="0.25" id="add_re" class="form-control form-control-sm " placeholder="0.00"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">PD</label><input type="number" step="0.5" id="pd_re" class="form-control form-control-sm " placeholder="32.0"></div>
+            </div>
+          </div>
+        </div>
+        <!-- LE -->
+        <div class="card style="background:var(--bg-elevated)" border-secondary mb-3">
+          <div class="card-body p-3">
+            <h6 class="text-info fw-semibold mb-3"><i class="bi bi-eye me-1"></i>Left Eye (OS)</h6>
+            <div class="row g-2">
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">SPH</label><input type="number" step="0.25" id="sph_le" class="form-control form-control-sm " placeholder="0.00"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">CYL</label><input type="number" step="0.25" id="cyl_le" class="form-control form-control-sm " placeholder="0.00"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">AXIS</label><input type="number" step="1" min="0" max="180" id="axis_le" class="form-control form-control-sm " placeholder="90"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">ADD</label><input type="number" step="0.25" id="add_le" class="form-control form-control-sm " placeholder="0.00"></div>
+              <div class="col"><label class="form-label text-secondary" style="font-size:.72rem">PD</label><input type="number" step="0.5" id="pd_le" class="form-control form-control-sm " placeholder="32.0"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="form-label text-secondary small">Notes</label>
+          <textarea id="rx_notes" class="form-control " rows="2" placeholder="Any additional notes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary fw-semibold" onclick="saveRx()"><i class="bi bi-check-lg me-1"></i>Save Prescription</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Condition Summary Modal -->
+<div class="modal fade" id="conditionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content ">
+      <div class="modal-header" style="border-color:var(--border-subtle)">
+        <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2 text-success"></i>Condition Summary</h5>
+        <button type="button" class="btn-close btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="background:var(--bg-surface)" id="conditionSummaryBody"></div>
+      <div class="modal-footer border-secondary">
+        <button class="btn btn-primary" data-bs-dismiss="modal">Got it</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const nowDate = new Date().toISOString().split('T')[0];
+document.getElementById('rx_date').value = nowDate;
+
+function saveRx() {
+  const data = {
+    date: document.getElementById('rx_date').value,
+    optometrist: document.getElementById('rx_optometrist').value,
+    sph_re: document.getElementById('sph_re').value,
+    cyl_re: document.getElementById('cyl_re').value,
+    axis_re: document.getElementById('axis_re').value,
+    add_re: document.getElementById('add_re').value,
+    pd_re: document.getElementById('pd_re').value,
+    sph_le: document.getElementById('sph_le').value,
+    cyl_le: document.getElementById('cyl_le').value,
+    axis_le: document.getElementById('axis_le').value,
+    add_le: document.getElementById('add_le').value,
+    pd_le: document.getElementById('pd_le').value,
+    notes: document.getElementById('rx_notes').value,
+  };
+  fetch('/api/save_prescription', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+  }).then(r => r.json()).then(res => {
+    if (res.success) {
+      bootstrap.Modal.getInstance(document.getElementById('addRxModal')).hide();
+      showConditionSummary(res.conditions, res.rx_label);
+    }
+  });
+}
+
+function showConditionSummary(conditions, label) {
+  let html = `<div class="mb-3"><span class="badge bg-${label==='high'?'danger':label==='moderate'?'warning text-dark':'success'} mb-2">${label.charAt(0).toUpperCase()+label.slice(1)} Power Prescription</span></div>`;
+  if (conditions.length === 0) {
+    html += '<div class="text-center py-2"><i class="bi bi-check-circle-fill text-success fs-3"></i><p class="text-secondary mt-2">No significant conditions detected.</p></div>';
+  } else {
+    conditions.forEach(c => {
+      const severityColors = {mild:'success', moderate:'warning', high:'danger'};
+      html += `<div class="card style="background:var(--bg-elevated)" border-secondary mb-2">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.3rem">${c.icon}</span>
+            <h6 class="fw-bold mb-0" style="color:var(--text-primary)">${c.name}</h6>
+            <span class="ms-auto badge bg-${severityColors[c.severity]} bg-opacity-20 text-${severityColors[c.severity]}">${c.severity}</span>
+          </div>
+          <p class="text-secondary small mb-0">${c.desc}</p>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('conditionSummaryBody').innerHTML = html;
+  new bootstrap.Modal(document.getElementById('conditionModal')).show();
+  setTimeout(() => location.reload(), 3000);
+}
+
+function deleteRx(id) {
+  if (!confirm('Delete this prescription?')) return;
+  fetch(`/api/delete_prescription/${id}`, {method:'DELETE'})
+    .then(r => r.json()).then(res => { if (res.success) location.reload(); });
+}
+</script>
+{% endblock %}
