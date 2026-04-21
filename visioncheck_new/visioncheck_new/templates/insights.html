@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% block title %}Insights — Oculux{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-bar-chart-line-fill me-2 text-info"></i>Eye Health Insights</h4>
+    <p class="text-secondary small mb-0">Understand your vision health in plain language</p>
+  </div>
+</div>
+
+{% if power_changed %}
+<div class="alert alert-warning border-warning d-flex gap-2 mb-4">
+  <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0 mt-1"></i>
+  <div><strong>Power Change Alert:</strong> Your prescription has changed by more than 0.5D since your last entry. Consider scheduling an eye exam.</div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <!-- Charts Column -->
+  <div class="col-lg-8">
+
+    <!-- ── VISION POWER OVER TIME ── -->
+    {% if all_rx and all_rx|length >= 1 %}
+    <div class="card card-dark mb-3">
+      <div class="card-header-dark d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-uppercase fw-semibold" style="font-size:.65rem;color:var(--text-muted);letter-spacing:.1em">PRIMARY TREND · SPHERICAL EQUIVALENT</div>
+          <span class="fw-bold" style="color:var(--text-primary);font-size:.95rem"><i class="bi bi-graph-down me-2" style="color:var(--accent)"></i>Vision Power Over Time</span>
+          <div style="font-size:.7rem;color:var(--text-muted)">Dioptre (D) progression — OD right eye, OS left eye</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          {% if all_rx|length >= 2 %}
+          {% set delta = ((all_rx[-1].sph_re or 0) - (all_rx[0].sph_re or 0)) %}
+          <span class="badge px-2 py-1" style="background:{% if delta < -0.5 %}rgba(255,77,106,.15);color:var(--red);border:1px solid rgba(255,77,106,.3){% else %}rgba(0,229,160,.12);color:var(--green);border:1px solid rgba(0,229,160,.25){% endif %};font-size:.7rem">
+            {% if delta < -0.5 %}⚠ Rapid Change{% else %}✓ Stable{% endif %}
+          </span>
+          {% endif %}
+          <span class="badge px-2 py-1" style="background:var(--accent-glow-sm);color:var(--accent);border:1px solid var(--border);font-size:.7rem">
+            Latest: {{ '%.2f'|format(all_rx[-1].sph_re or 0) }} / {{ '%.2f'|format(all_rx[-1].sph_le or 0) }}
+          </span>
+        </div>
+      </div>
+      <!-- KPI Strip -->
+      <div class="d-flex gap-3 px-4 pt-3 pb-1">
+        <div class="text-center">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--accent)">{{ all_rx|length }}</div>
+          <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Records</div>
+        </div>
+        <div style="width:1px;background:var(--border-subtle)"></div>
+        <div class="text-center">
+          {% set se_re = ((all_rx[-1].sph_re or 0) + ((all_rx[-1].cyl_re or 0)/2)) %}
+          <div style="font-size:1.4rem;font-weight:700;color:var(--red)">{{ '%.2f'|format(se_re) }}D</div>
+          <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">OD (SE)</div>
+        </div>
+        <div style="width:1px;background:var(--border-subtle)"></div>
+        <div class="text-center">
+          {% set se_le = ((all_rx[-1].sph_le or 0) + ((all_rx[-1].cyl_le or 0)/2)) %}
+          <div style="font-size:1.4rem;font-weight:700;color:var(--green)">{{ '%.2f'|format(se_le) }}D</div>
+          <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">OS (SE)</div>
+        </div>
+        {% if all_rx|length >= 2 %}
+        <div style="width:1px;background:var(--border-subtle)"></div>
+        <div class="text-center">
+          {% set change = ((all_rx[-1].sph_re or 0) - (all_rx[0].sph_re or 0)) %}
+          <div style="font-size:1.4rem;font-weight:700;color:{% if change < 0 %}var(--red){% else %}var(--amber){% endif %}">{{ '%+.2f'|format(change) }}D</div>
+          <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Δ Change</div>
+        </div>
+        {% endif %}
+      </div>
+      <!-- Legend -->
+      <div class="d-flex gap-3 px-4 py-1" style="font-size:.75rem">
+        <span style="color:var(--accent)">— OD Right Eye</span>
+        <span style="color:var(--green)">— OS Left Eye</span>
+      </div>
+      <div class="card-body pt-1">
+        <canvas id="visionTrendChart" height="110"></canvas>
+      </div>
+    </div>
+
+    <!-- SPH / CYL / SE Comparison Bar Charts -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card card-dark h-100">
+          <div class="card-header-dark">
+            <div style="font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">COMPARISON · SPHERE</div>
+            <div class="fw-semibold" style="font-size:.82rem;color:var(--text-primary)">SPH — Left vs Right</div>
+            <div style="font-size:.65rem;color:var(--text-muted)">Spherical power by prescription date</div>
+          </div>
+          <div class="card-body"><canvas id="sphCompChart" height="130"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-dark h-100">
+          <div class="card-header-dark">
+            <div style="font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">COMPARISON · CYLINDER</div>
+            <div class="fw-semibold" style="font-size:.82rem;color:var(--text-primary)">CYL — Left vs Right</div>
+            <div style="font-size:.65rem;color:var(--text-muted)">Astigmatism cylinder power</div>
+          </div>
+          <div class="card-body"><canvas id="cylCompChart" height="130"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-dark h-100">
+          <div class="card-header-dark">
+            <div style="font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">COMPARISON · SPHERICAL EQUIV.</div>
+            <div class="fw-semibold" style="font-size:.82rem;color:var(--text-primary)">SE — Left vs Right</div>
+            <div style="font-size:.65rem;color:var(--text-muted)">SE = SPH + (CYL ÷ 2)</div>
+          </div>
+          <div class="card-body"><canvas id="seCompChart" height="130"></canvas></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if latest_test %}
+    <!-- Colour Vision Donut -->
+    <div class="card card-dark mb-3">
+      <div class="card-header-dark"><span class="fw-semibold"><i class="bi bi-palette me-2 text-warning"></i>Colour Vision Test Result</span></div>
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-4"><canvas id="colourChart" height="120"></canvas></div>
+          <div class="col-8">
+            <h5 fw-bold">{{ latest_test.colour_vision or 'Normal' }}</h5>
+            <p class="text-secondary small">Score: {{ latest_test.colour_score or '—' }}/10 plates correct</p>
+            {% if latest_test.colour_score %}
+            <div class="progress mb-2" style="height:6px">
+              <div class="progress-bar {% if latest_test.colour_score >= 9 %}bg-success{% elif latest_test.colour_score >= 7 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width:{{ (latest_test.colour_score / 10 * 100)|int }}%"></div>
+            </div>
+            {% endif %}
+            <p class="text-secondary small mb-0">
+              {% if latest_test.colour_score and latest_test.colour_score >= 9 %}✅ Normal colour vision{% elif latest_test.colour_score and latest_test.colour_score >= 7 %}⚠️ Mild colour deficiency possible{% else %}❌ Colour vision deficiency likely{% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Lens Recommendation Panel -->
+    {% if latest_rx %}
+    <div class="card card-dark">
+      <div class="card-header-dark"><span class="fw-semibold"><i class="bi bi-gem me-2 text-success"></i>Lens Recommendations</span></div>
+      <div class="card-body">
+        {% set add_val = latest_rx.add_re or 0 %}
+        {% set max_sph = [latest_rx.sph_re|abs, latest_rx.sph_le|abs]|max %}
+        <div class="mb-3">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-layers text-primary"></i>
+            <strong style="color:var(--text-primary)">Lens Type:</strong>
+            <span class="badge bg-primary">
+              {% if add_val > 0 %}Progressive{% elif max_sph > 4 %}High-Index{% else %}Single Vision{% endif %}
+            </span>
+          </div>
+          {% if add_val > 0 %}
+          <p class="text-secondary small">Your prescription includes an ADD value, indicating <strong style="color:var(--text-primary)">presbyopia</strong>. Progressive lenses are recommended for seamless distance and near vision correction.</p>
+          {% endif %}
+        </div>
+        <div class="row g-2">
+          {% set brands = [
+            ('Budget','Best Value','success','Kodak Clear','₹500 – ₹1,500','Single/standard clear lenses. Good for mild prescriptions.'),
+            ('Mid-range','Popular','info','Essilor Crizal Easy','₹2,000 – ₹4,000','Anti-reflective coating with scratch resistance.'),
+            ('Premium','Best Quality','warning','Zeiss DuraVision','₹5,000 – ₹9,000','Superior optics, best clarity and durability.'),
+            ('Anti-fatigue','Screen Users','danger','Hoya Sync III','₹3,500 – ₹6,000','Reduces digital eye strain for heavy screen users.')
+          ] %}
+          {% for tier, badge, color, brand, price, desc in brands %}
+          <div class="col-12">
+            <div class="d-flex align-items-start gap-3 p-2 rounded" style="background:var(--bg-elevated);border:1px solid var(--border-subtle)">
+              <div class="text-center" style="min-width:70px">
+                <span class="badge bg-{{ color }} bg-opacity-20 text-{{ color }} d-block mb-1" style="font-size:.65rem">{{ badge }}</span>
+                <div class="fw-semibold" style="font-size:.8rem">{{ tier }}</div>
+              </div>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fw-semibold" style="font-size:.85rem">{{ brand }}</span>
+                  <span class="text-success small ms-auto">{{ price }}</span>
+                </div>
+                <p class="text-secondary mb-0" style="font-size:.75rem">{{ desc }}</p>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Coating recommendations -->
+        <div class="mt-3">
+          <p class="text-secondary small fw-semibold mb-2">Recommended Coatings</p>
+          <div class="d-flex flex-wrap gap-2">
+            <form id="prefForm" class="d-flex flex-wrap gap-2">
+              {% set profile = pref.usage_profile if pref else 'office' %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="usage" value="office" {% if profile == 'office' %}checked{% endif %} onchange="savePref()">
+                <label class="form-check-label text-secondary small">Office/Screens</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="usage" value="outdoor" {% if profile == 'outdoor' %}checked{% endif %} onchange="savePref()">
+                <label class="form-check-label text-secondary small">Outdoor</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="usage" value="both" {% if profile == 'both' %}checked{% endif %} onchange="savePref()">
+                <label class="form-check-label text-secondary small">Both</label>
+              </div>
+            </form>
+          </div>
+          <div id="coatingRec" class="mt-2"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Conditions & AI Column -->
+  <div class="col-lg-4">
+    <!-- Eye Health Score -->
+    {% if latest_test %}
+    <div class="card card-dark mb-3">
+      <div class="card-header-dark"><span class="fw-semibold"><i class="bi bi-heart-pulse-fill me-2 text-danger"></i>Eye Health Score</span></div>
+      <div class="card-body text-center">
+        <div class="health-score-ring">
+          <canvas id="healthScoreChart" width="140" height="140"></canvas>
+          <div class="health-score-num">
+            <div style="font-size:2rem;font-weight:700;color:var(--text-primary)">{{ latest_test.eye_health_score }}</div>
+            <div class="text-secondary" style="font-size:.75rem">/100</div>
+          </div>
+        </div>
+        <p class="text-secondary small mt-2">
+          {% if latest_test.eye_health_score >= 80 %}🟢 Excellent — Keep it up!
+          {% elif latest_test.eye_health_score >= 60 %}🟡 Good — Monitor regularly
+          {% elif latest_test.eye_health_score >= 40 %}🟠 Fair — See an optometrist
+          {% else %}🔴 Poor — Schedule an eye exam soon{% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- When to visit doctor -->
+    <div class="card card-dark mb-3">
+      <div class="card-header-dark"><span class="fw-semibold"><i class="bi bi-hospital me-2 text-primary"></i>When to Visit a Doctor</span></div>
+      <div class="card-body">
+        <div class="visit-checklist">
+          {% set urgency = 'routine' %}
+          {% if latest_rx %}{% set max_sph = [latest_rx.sph_re|abs if latest_rx.sph_re else 0, latest_rx.sph_le|abs if latest_rx.sph_le else 0]|max %}{% if max_sph > 6 %}{% set urgency = 'urgent' %}{% elif max_sph > 3 %}{% set urgency = 'soon' %}{% endif %}{% endif %}
+          <div class="visit-item {{ 'active' if urgency == 'urgent' else '' }}"><i class="bi bi-{{ 'exclamation-circle-fill text-danger' if urgency == 'urgent' else 'check-circle text-secondary' }}"></i><span>Urgent: Power > 6D — see doctor soon</span></div>
+          <div class="visit-item {{ 'active' if urgency in ('urgent','soon') else '' }}"><i class="bi bi-{{ 'exclamation-triangle-fill text-warning' if urgency in ('urgent','soon') else 'check-circle text-secondary' }}"></i><span>Recommended: Annual exam</span></div>
+          <div class="visit-item"><i class="bi bi-check-circle text-success"></i><span>Routine: Every 2 years if healthy</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Insight Card -->
+    <div class="card card-dark">
+      <div class="card-header-dark d-flex align-items-center justify-content-between">
+        <span class="fw-semibold"><i class="bi bi-stars me-2 text-warning"></i>AI Insight</span>
+        <button class="btn btn-sm btn-outline-warning" onclick="getAIInsight()"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
+      <div class="card-body">
+        <div id="aiInsightLoader" class="d-none"><div class="shimmer-line mb-2"></div><div class="shimmer-line w-75 mb-2"></div><div class="shimmer-line w-90"></div></div>
+        <div id="aiInsightText" class="text-secondary small" style="line-height:1.7">
+          Click the refresh button to get a personalised AI-powered eye health insight based on your data.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const latestRx = {{ {'sph_re': latest_rx.sph_re, 'sph_le': latest_rx.sph_le, 'cyl_re': latest_rx.cyl_re, 'cyl_le': latest_rx.cyl_le, 'add_re': latest_rx.add_re} | tojson if latest_rx else 'null' }};
+const latestTest = {{ {'colour_score': latest_test.colour_score, 'eye_health_score': latest_test.eye_health_score} | tojson if latest_test else 'null' }};
+
+{% if all_rx %}
+// ── Prescription history data ──
+const rxLabels = {{ all_rx | map(attribute='date') | map('string') | list | tojson }};
+const rxDates  = rxLabels.map((d,i) => {
+  const dt = new Date(d); return isNaN(dt) ? 'Rx '+(i+1) : dt.toLocaleDateString('en-IN',{month:'short',year:'2-digit'});
+});
+const rxSphRE = {{ all_rx | map(attribute='sph_re') | list | tojson }};
+const rxSphLE = {{ all_rx | map(attribute='sph_le') | list | tojson }};
+const rxCylRE = {{ all_rx | map(attribute='cyl_re') | list | tojson }};
+const rxCylLE = {{ all_rx | map(attribute='cyl_le') | list | tojson }};
+const rxSeRE  = rxSphRE.map((v,i) => v !== null ? +(v + (rxCylRE[i]||0)/2).toFixed(3) : null);
+const rxSeLE  = rxSphLE.map((v,i) => v !== null ? +(v + (rxCylLE[i]||0)/2).toFixed(3) : null);
+
+const gridCol   = 'rgba(15,23,42,.06)';
+const tickCol   = '#64748b';
+const CYAN      = '#2563eb';
+const GREEN     = '#059669';
+const PURPLE    = '#7c3aed';
+const AMBER     = '#d97706';
+
+// ── 1. Vision Power Over Time (line chart matching reference) ──
+const trendCtx = document.getElementById('visionTrendChart');
+if (trendCtx) {
+  new Chart(trendCtx.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: rxDates,
+      datasets: [
+        {
+          label: 'OD Right Eye (SE)', data: rxSeRE,
+          borderColor: CYAN, backgroundColor: 'rgba(37,99,235,.06)',
+          pointBackgroundColor: '#fff', pointBorderColor: CYAN,
+          pointRadius: 5, pointHoverRadius: 7,
+          borderWidth: 2.5, tension: 0.4, fill: false
+        },
+        {
+          label: 'OS Left Eye (SE)', data: rxSeLE,
+          borderColor: GREEN, backgroundColor: 'rgba(0,229,160,.05)',
+          pointBackgroundColor: '#fff', pointBorderColor: GREEN,
+          pointRadius: 5, pointHoverRadius: 7,
+          borderWidth: 2.5, tension: 0.4, fill: '-1',
+          // Fills area between OD and OS lines like the reference image
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: tickCol, boxWidth: 14, font: { size: 11 } } },
+        tooltip: {
+          backgroundColor: '#fff', borderColor: 'rgba(37,99,235,.25)', borderWidth: 1,
+          titleColor: '#0f172a', bodyColor: '#475569',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2)+'D' : '—'}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: gridCol }, ticks: { color: tickCol, font: { size: 10 } } },
+        y: {
+          grid: { color: gridCol }, ticks: { color: tickCol, font: { size: 10 },
+            callback: v => v.toFixed(1)+'D' },
+          title: { display: true, text: 'Dioptres (D)', color: tickCol, font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// helper: grouped bar chart for comparison panels
+function makeCompChart(id, reData, leData, label) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: rxDates,
+      datasets: [
+        { label: 'OD', data: reData, backgroundColor: 'rgba(37,99,235,.65)', borderRadius: 3 },
+        { label: 'OS', data: leData, backgroundColor: 'rgba(5,150,105,.55)', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { labels: { color: tickCol, boxWidth: 10, font: { size: 9 } } } },
+      scales: {
+        x: { grid: { color: gridCol }, ticks: { color: tickCol, font: { size: 8 } } },
+        y: { grid: { color: gridCol }, ticks: { color: tickCol, font: { size: 8 },
+               callback: v => v.toFixed(1) },
+             title: { display: true, text: label, color: tickCol, font: { size: 8 } } }
+      }
+    }
+  });
+}
+
+makeCompChart('sphCompChart', rxSphRE, rxSphLE, 'D');
+makeCompChart('cylCompChart', rxCylRE, rxCylLE, 'D');
+makeCompChart('seCompChart',  rxSeRE,  rxSeLE,  'SE (D)');
+{% endif %}
+
+{% if latest_test and latest_test.colour_score is not none %}
+const cs = {{ latest_test.colour_score or 10 }};
+new Chart(document.getElementById('colourChart').getContext('2d'), {
+  type: 'doughnut',
+  data: { datasets: [{ data: [cs, 10-cs],
+    backgroundColor: [cs>=9?'#00e5a0':cs>=7?'#ffb930':'#ff4d6a','rgba(15,23,42,.06)'],
+    borderWidth: 0 }] },
+  options: { cutout:'72%', plugins:{legend:{display:false}}, animation:{animateRotate:true} }
+});
+{% endif %}
+
+{% if latest_test and latest_test.eye_health_score %}
+const hs = {{ latest_test.eye_health_score }};
+new Chart(document.getElementById('healthScoreChart').getContext('2d'), {
+  type: 'doughnut',
+  data: { datasets: [{ data: [hs, 100-hs],
+    backgroundColor: [hs>=80?'#00e5a0':hs>=60?'#ffb930':'#ff4d6a','rgba(15,23,42,.06)'],
+    borderWidth: 0 }] },
+  options: { cutout:'70%', plugins:{legend:{display:false}} }
+});
+{% endif %}
+
+// Coating recommendations
+function updateCoatings() {
+  const profile = document.querySelector('input[name="usage"]:checked')?.value || 'office';
+  const recs = {
+    office: ['🖥️ Blue-light filter — reduces digital eye strain', '✨ Anti-reflective — eliminates screen glare', '🛡️ Scratch-resistant coating'],
+    outdoor: ['🌞 Photochromic — auto-darkens in sunlight', '✨ Anti-reflective', '🌊 UV400 protection'],
+    both: ['🌞 Photochromic', '🖥️ Blue-light filter', '✨ Anti-reflective', '🛡️ Scratch-resistant']
+  };
+  const list = recs[profile] || recs.office;
+  document.getElementById('coatingRec').innerHTML = list.map(r =>
+    `<div class="d-flex align-items-center gap-2 mb-1"><span class="text-success small">✓</span><span class="text-secondary small">${r}</span></div>`
+  ).join('');
+}
+updateCoatings();
+
+function savePref() {
+  const profile = document.querySelector('input[name="usage"]:checked')?.value || 'office';
+  fetch('/api/save_preference',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usage_profile:profile})});
+  updateCoatings();
+}
+
+function getAIInsight() {
+  document.getElementById('aiInsightLoader').classList.remove('d-none');
+  document.getElementById('aiInsightText').textContent = '';
+  const context = latestRx ? `Prescription: SPH RE ${latestRx.sph_re}, LE ${latestRx.sph_le}, CYL ${latestRx.cyl_re}` : 'No prescription yet';
+  fetch('/api/ai_insight',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({topic:'eye health overview and care tips',context})
+  }).then(r=>r.json()).then(res=>{
+    document.getElementById('aiInsightLoader').classList.add('d-none');
+    document.getElementById('aiInsightText').textContent = res.text;
+  });
+}
+</script>
+{% endblock %}

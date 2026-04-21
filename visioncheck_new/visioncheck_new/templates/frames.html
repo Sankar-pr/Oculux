@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+{% block title %}Frames Shop — Oculux{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1" style="color:var(--text-primary)"><i class="bi bi-eyeglasses me-2" style="color:var(--accent)"></i>Frames Shop</h4>
+    <p class="small mb-0" style="color:var(--text-secondary)">Browse styles & shop from top eyewear retailers</p>
+  </div>
+</div>
+
+<!-- Retailer Banner -->
+<div class="shop-banner mb-4">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="fw-semibold" style="color:var(--accent)"><i class="bi bi-bag-heart me-2"></i>Trusted Retailers</span>
+    <span class="badge ms-auto" style="background:var(--accent-glow);color:var(--accent);border:1px solid var(--border)">India's Top Eyewear Stores</span>
+  </div>
+  <div class="row g-3">
+    <!-- Lenskart -->
+    <div class="col-6 col-md-3">
+      <a href="https://www.lenskart.com/eyeglasses.html" target="_blank" class="retailer-card">
+        <div class="retailer-icon" style="background:linear-gradient(135deg,rgba(0,150,255,.2),rgba(0,200,255,.1))">👓</div>
+        <div class="retailer-name">Lenskart</div>
+        <div class="retailer-desc">India's #1 eyewear brand. 5000+ styles, home trial</div>
+        <span class="retailer-badge" style="background:rgba(0,200,255,.12);color:var(--accent);border:1px solid var(--border)">Home Try-On</span>
+      </a>
+    </div>
+    <!-- Specsmakers -->
+    <div class="col-6 col-md-3">
+      <a href="https://www.specsmakers.in/collections/eyeglasses" target="_blank" class="retailer-card">
+        <div class="retailer-icon" style="background:linear-gradient(135deg,rgba(255,100,50,.2),rgba(255,150,80,.1))">🔶</div>
+        <div class="retailer-name">Specsmakers</div>
+        <div class="retailer-desc">South India's favourite. Budget-friendly frames</div>
+        <span class="retailer-badge" style="background:rgba(255,185,48,.1);color:var(--amber);border:1px solid rgba(255,185,48,.2)">Best Value</span>
+      </a>
+    </div>
+    <!-- Titan Eye+ -->
+    <div class="col-6 col-md-3">
+      <a href="https://www.titaneyeplus.com/eyeglasses" target="_blank" class="retailer-card">
+        <div class="retailer-icon" style="background:linear-gradient(135deg,rgba(180,100,255,.2),rgba(130,80,255,.1))">💠</div>
+        <div class="retailer-name">Titan Eye+</div>
+        <div class="retailer-desc">Premium brand by Tata. Quality lenses & frames</div>
+        <span class="retailer-badge" style="background:rgba(124,108,255,.12);color:#a08fff;border:1px solid rgba(124,108,255,.2)">Premium</span>
+      </a>
+    </div>
+    <!-- John Jacobs -->
+    <div class="col-6 col-md-3">
+      <a href="https://www.johnjacobs.com/eyeglasses" target="_blank" class="retailer-card">
+        <div class="retailer-icon" style="background:linear-gradient(135deg,rgba(0,229,160,.2),rgba(0,180,120,.1))">💎</div>
+        <div class="retailer-name">John Jacobs</div>
+        <div class="retailer-desc">Lenskart's luxury line. Designer-inspired collections</div>
+        <span class="retailer-badge" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,.2)">Designer</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  <span class="small fw-semibold" style="color:var(--text-secondary)">Filter by shape:</span>
+  <button class="btn btn-sm filter-btn active" data-filter="all" onclick="filterFrames(this,'all')"
+    style="border-radius:20px;font-size:.75rem;background:var(--accent-glow);border:1px solid var(--border);color:var(--accent)">All Styles</button>
+  {% for shape in ['round','square','oval','cat-eye','aviator','wayfarer','geometric','browline'] %}
+  <button class="btn btn-sm filter-btn" data-filter="{{shape}}" onclick="filterFrames(this,'{{shape}}')"
+    style="border-radius:20px;font-size:.75rem;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-secondary)">{{shape|title}}</button>
+  {% endfor %}
+</div>
+
+<!-- Frames Grid -->
+<div class="row g-3" id="framesGrid">
+  <!-- Populated by JS -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const wishlistIds = {{ wishlist_ids }};
+let wishlistSet = new Set(wishlistIds);
+
+// Frame catalog with retailer search URLs
+const FRAME_CATALOG = [
+  {
+    type:'round', name:'Classic Round', rim:'Full Rim',
+    desc:'Timeless circular shape. Softens angular & square faces. Adds an intellectual, artistic charm.',
+    tags:['oval','heart','square'], emoji:'⭕',
+    colors:['#0099cc','#6b6b6b','#b87333','#2d2d2d'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/round-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/round',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=round',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=round'
+    }
+  },
+  {
+    type:'square', name:'Bold Square', rim:'Full Rim',
+    desc:'Strong geometric lines. Adds structure to soft, round, or oval faces. A confident, bold look.',
+    tags:['oval','round','oblong'], emoji:'⬛',
+    colors:['#1a1a1a','#2255aa','#8B4513','#556B2F'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/rectangle-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/rectangle',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=square',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=rectangle'
+    }
+  },
+  {
+    type:'oval', name:'Elegant Oval', rim:'Full Rim',
+    desc:'Most universally flattering. Balanced proportions suit almost any face shape.',
+    tags:['square','oblong','heart'], emoji:'🥚',
+    colors:['#0099cc','#c0a060','#8B0000','#1a1a1a'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/oval-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/oval',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=oval',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=oval'
+    }
+  },
+  {
+    type:'cat-eye', name:'Cat-Eye', rim:'Full Rim',
+    desc:'Upswept outer corners lift the face. Feminine, retro-chic — great for heart & oval shapes.',
+    tags:['oval','heart','round'], emoji:'🐱',
+    colors:['#cc0044','#1a1a1a','#7c6cff','#cc6600'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/cat-eye-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/cat-eye',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=cat-eye',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=cat-eye'
+    }
+  },
+  {
+    type:'aviator', name:'Aviator', rim:'Half Rim',
+    desc:'Classic teardrop silhouette. Timeless pilot style — flatters oval, square and oblong faces.',
+    tags:['oval','square','oblong'], emoji:'✈️',
+    colors:['#c0a060','#1a1a1a','#8B4513','#2d2d2d'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/aviator-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/aviator',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=aviator',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=aviator'
+    }
+  },
+  {
+    type:'wayfarer', name:'Wayfarer', rim:'Full Rim',
+    desc:'Iconic trapezoidal frame. Bold, versatile and works well for most face shapes.',
+    tags:['oval','square','heart','round'], emoji:'🕶️',
+    colors:['#1a1a1a','#8B0000','#0d3366','#5C4033'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/wayfarer-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/wayfarer',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=wayfarer',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=wayfarer'
+    }
+  },
+  {
+    type:'geometric', name:'Geometric', rim:'Full Rim',
+    desc:'Hexagonal & octagonal shapes. Modern, fashion-forward — perfect for oval & round faces.',
+    tags:['oval','round','heart'], emoji:'🔷',
+    colors:['#0099cc','#1a1a1a','#7c6cff','#c0a060'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/hexagonal-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/geometric',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=geometric',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=geometric'
+    }
+  },
+  {
+    type:'browline', name:'Browline', rim:'Half Rim',
+    desc:'Thick upper bar, thin lower. Vintage-inspired, distinctive look for oval & oblong faces.',
+    tags:['oval','oblong','square'], emoji:'🎭',
+    colors:['#1a1a1a','#5C4033','#c0a060','#2d2d2d'],
+    retailers:{
+      lenskart:'https://www.lenskart.com/eyeglasses/browline-eyeglasses.html',
+      specsmakers:'https://www.specsmakers.in/collections/browline',
+      titan:'https://www.titaneyeplus.com/eyeglasses?shape=browline',
+      jj:'https://www.johnjacobs.com/eyeglasses?shape=browline'
+    }
+  }
+];
+
+function getFrameSVG(type, color, w, h) {
+  color = color || '#0099cc'; w = w || 110; h = h || 64;
+  const sw = 2.5, cx = w/2, cy = h/2;
+  const svgs = {
+    round:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><circle cx="${cx-w*.22}" cy="${cy}" r="${h*.38}" fill="none" stroke="${color}" stroke-width="${sw}"/><circle cx="${cx+w*.22}" cy="${cy}" r="${h*.38}" fill="none" stroke="${color}" stroke-width="${sw}"/><line x1="${cx-w*.22+h*.38}" y1="${cy}" x2="${cx+w*.22-h*.38}" y2="${cy}" stroke="${color}" stroke-width="${sw}"/><line x1="2" y1="${cy}" x2="${cx-w*.22-h*.38}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.22+h*.38}" y1="${cy}" x2="${w-2}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    square:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect x="${cx-w*.43}" y="${cy-h*.37}" width="${w*.39}" height="${h*.74}" rx="4" fill="none" stroke="${color}" stroke-width="${sw}"/><rect x="${cx+w*.04}" y="${cy-h*.37}" width="${w*.39}" height="${h*.74}" rx="4" fill="none" stroke="${color}" stroke-width="${sw}"/><line x1="${cx-w*.04}" y1="${cy}" x2="${cx+w*.04}" y2="${cy}" stroke="${color}" stroke-width="${sw}"/><line x1="2" y1="${cy}" x2="${cx-w*.43}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.43}" y1="${cy}" x2="${w-2}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    oval:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><ellipse cx="${cx-w*.22}" cy="${cy}" rx="${w*.2}" ry="${h*.36}" fill="none" stroke="${color}" stroke-width="${sw}"/><ellipse cx="${cx+w*.22}" cy="${cy}" rx="${w*.2}" ry="${h*.36}" fill="none" stroke="${color}" stroke-width="${sw}"/><line x1="${cx-w*.02}" y1="${cy}" x2="${cx+w*.02}" y2="${cy}" stroke="${color}" stroke-width="${sw}"/><line x1="2" y1="${cy}" x2="${cx-w*.42}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.42}" y1="${cy}" x2="${w-2}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    'cat-eye':`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="M${cx-w*.44} ${cy+h*.15} Q${cx-w*.42} ${cy-h*.38} ${cx-w*.2} ${cy-h*.3} Q${cx-w*.02} ${cy-h*.38} ${cx-w*.04} ${cy+h*.2} Z" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/><path d="M${cx+w*.44} ${cy+h*.15} Q${cx+w*.42} ${cy-h*.38} ${cx+w*.2} ${cy-h*.3} Q${cx+w*.02} ${cy-h*.38} ${cx+w*.04} ${cy+h*.2} Z" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/><line x1="2" y1="${cy+h*.05}" x2="${cx-w*.44}" y2="${cy+h*.15}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.44}" y1="${cy+h*.15}" x2="${w-2}" y2="${cy+h*.05}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    aviator:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="M${cx-w*.44} ${cy-h*.28} Q${cx-w*.44} ${cy+h*.36} ${cx-w*.22} ${cy+h*.36} Q${cx-w*.02} ${cy+h*.36} ${cx-w*.02} ${cy-h*.28} Z" fill="none" stroke="${color}" stroke-width="${sw}"/><path d="M${cx+w*.44} ${cy-h*.28} Q${cx+w*.44} ${cy+h*.36} ${cx+w*.22} ${cy+h*.36} Q${cx+w*.02} ${cy+h*.36} ${cx+w*.02} ${cy-h*.28} Z" fill="none" stroke="${color}" stroke-width="${sw}"/><line x1="${cx-w*.44}" y1="${cy-h*.28}" x2="${cx+w*.44}" y2="${cy-h*.28}" stroke="${color}" stroke-width="${sw}"/><line x1="2" y1="${cy-h*.28}" x2="${cx-w*.44}" y2="${cy-h*.28}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.44}" y1="${cy-h*.28}" x2="${w-2}" y2="${cy-h*.28}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    wayfarer:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="M${cx-w*.44} ${cy-h*.3} L${cx-w*.42} ${cy+h*.3} Q${cx-w*.22} ${cy+h*.36} ${cx-w*.02} ${cy+h*.25} L${cx-w*.02} ${cy-h*.3} Z" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/><path d="M${cx+w*.44} ${cy-h*.3} L${cx+w*.42} ${cy+h*.3} Q${cx+w*.22} ${cy+h*.36} ${cx+w*.02} ${cy+h*.25} L${cx+w*.02} ${cy-h*.3} Z" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/><line x1="2" y1="${cy-h*.3}" x2="${cx-w*.44}" y2="${cy-h*.3}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.44}" y1="${cy-h*.3}" x2="${w-2}" y2="${cy-h*.3}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    geometric:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="${cx-w*.44},${cy} ${cx-w*.36},${cy-h*.36} ${cx-w*.1},${cy-h*.36} ${cx-w*.02},${cy} ${cx-w*.1},${cy+h*.36} ${cx-w*.36},${cy+h*.36}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/><polygon points="${cx+w*.44},${cy} ${cx+w*.36},${cy-h*.36} ${cx+w*.1},${cy-h*.36} ${cx+w*.02},${cy} ${cx+w*.1},${cy+h*.36} ${cx+w*.36},${cy+h*.36}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linejoin="round"/><line x1="2" y1="${cy}" x2="${cx-w*.44}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.44}" y1="${cy}" x2="${w-2}" y2="${cy}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`,
+    browline:`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect x="${cx-w*.43}" y="${cy-h*.38}" width="${w*.39}" height="${h*.28}" rx="3" fill="${color}" fill-opacity="0.5"/><rect x="${cx+w*.04}" y="${cy-h*.38}" width="${w*.39}" height="${h*.28}" rx="3" fill="${color}" fill-opacity="0.5"/><path d="M${cx-w*.43} ${cy-h*.1} Q${cx-w*.24} ${cy+h*.36} ${cx-w*.04} ${cy-h*.1}" fill="none" stroke="${color}" stroke-width="${sw*.7}"/><path d="M${cx+w*.04} ${cy-h*.1} Q${cx+w*.24} ${cy+h*.36} ${cx+w*.43} ${cy-h*.1}" fill="none" stroke="${color}" stroke-width="${sw*.7}"/><line x1="2" y1="${cy-h*.24}" x2="${cx-w*.43}" y2="${cy-h*.24}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/><line x1="${cx+w*.43}" y1="${cy-h*.24}" x2="${w-2}" y2="${cy-h*.24}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/></svg>`
+  };
+  return svgs[type] || svgs.oval;
+}
+
+function buildGrid(filter) {
+  const grid = document.getElementById('framesGrid');
+  grid.innerHTML = '';
+  const frames = filter === 'all' ? FRAME_CATALOG : FRAME_CATALOG.filter(f => f.type === filter);
+  frames.forEach(f => {
+    const inWishlist = wishlistSet.has(f.name);
+    const col = document.createElement('div');
+    col.className = 'col-12 col-md-6 col-lg-4';
+    col.dataset.type = f.type;
+    col.innerHTML = `
+      <div class="frame-card-gallery h-100 d-flex flex-column">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span style="font-size:1.4rem">${f.emoji}</span>
+          <div>
+            <div class="fw-semibold" style="color:var(--text-primary);font-size:.9rem">${f.name}</div>
+            <div style="font-size:.68rem;color:var(--text-muted)">${f.rim}</div>
+          </div>
+          <div class="ms-auto d-flex gap-1">
+            ${f.colors.map(c => `<span style="width:14px;height:14px;border-radius:50%;background:${c};border:1px solid rgba(255,255,255,.15);display:inline-block"></span>`).join('')}
+          </div>
+        </div>
+        <div class="d-flex justify-content-center py-2 mb-2" style="background:rgba(0,200,255,.03);border-radius:10px;border:1px solid var(--border-subtle)">
+          ${getFrameSVG(f.type, '#00c8ff', 120, 68)}
+        </div>
+        <p style="font-size:.75rem;color:var(--text-secondary);line-height:1.5" class="mb-2">${f.desc}</p>
+        <div style="font-size:.68rem;color:var(--text-muted)" class="mb-2">
+          Best for: ${f.tags.map(t => `<span style="background:rgba(0,200,255,.08);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text-secondary);margin-right:3px">${t}</span>`).join('')}
+        </div>
+        <div class="mt-auto">
+          <div class="d-flex gap-1 flex-wrap mb-2">
+            <a href="${f.retailers.lenskart}" target="_blank" class="shop-link-btn" style="border-color:rgba(0,200,255,.3);color:var(--accent)">
+              <i class="bi bi-bag"></i> Lenskart
+            </a>
+            <a href="${f.retailers.specsmakers}" target="_blank" class="shop-link-btn" style="border-color:rgba(255,185,48,.3);color:var(--amber)">
+              <i class="bi bi-bag"></i> Specsmakers
+            </a>
+            <a href="${f.retailers.titan}" target="_blank" class="shop-link-btn" style="border-color:rgba(124,108,255,.3);color:#a08fff">
+              <i class="bi bi-bag"></i> Titan Eye+
+            </a>
+            <a href="${f.retailers.jj}" target="_blank" class="shop-link-btn" style="border-color:rgba(0,229,160,.3);color:var(--green)">
+              <i class="bi bi-bag"></i> John Jacobs
+            </a>
+          </div>
+          <button class="btn btn-sm w-100 ${inWishlist ? 'btn-danger' : 'btn-outline-danger'}"
+            onclick="toggleWishlist('${f.name}','${f.type}','${f.rim}',this)"
+            id="wbtn_${f.type}">
+            <i class="bi bi-heart${inWishlist ? '-fill' : ''} me-1"></i>${inWishlist ? 'Saved to Wishlist' : 'Save to Wishlist'}
+          </button>
+        </div>
+      </div>`;
+    grid.appendChild(col);
+  });
+}
+
+function filterFrames(btn, type) {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.style.background = 'var(--bg-surface)';
+    b.style.color = 'var(--text-secondary)';
+    b.style.borderColor = 'var(--border-subtle)';
+  });
+  btn.style.background = 'var(--accent-glow)';
+  btn.style.color = 'var(--accent)';
+  btn.style.borderColor = 'var(--border)';
+  buildGrid(type);
+}
+
+async function toggleWishlist(name, type, rim, btn) {
+  try {
+    const res = await fetch('/api/wishlist/toggle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frame_name: name, frame_type: type, rim_type: rim })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (data.action === 'added') {
+        wishlistSet.add(name);
+        btn.className = 'btn btn-sm w-100 btn-danger';
+        btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Saved to Wishlist';
+      } else {
+        wishlistSet.delete(name);
+        btn.className = 'btn btn-sm w-100 btn-outline-danger';
+        btn.innerHTML = '<i class="bi bi-heart me-1"></i>Save to Wishlist';
+      }
+    }
+  } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => buildGrid('all'));
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Wishlist — Oculux{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-heart-fill me-2 text-danger"></i>My Wishlist</h4>
+    <p class="text-secondary small mb-0">{{ items|length }} saved frame{% if items|length != 1 %}s{% endif %}</p>
+  </div>
+  {% if items %}
+  <button class="btn btn-outline-info ms-auto btn-sm" onclick="compareSelected()"><i class="bi bi-columns-gap me-1"></i>Compare</button>
+  {% endif %}
+</div>
+
+{% if items %}
+<div class="row g-3" id="wishlistGrid">
+  {% for item in items %}
+  <div class="col-6 col-md-4 col-lg-3" id="witem{{ item.id }}">
+    <div class="card card-dark h-100 frame-card">
+      <div class="card-body text-center">
+        <div class="frame-svg-container mb-3" id="svgContainer{{ item.id }}"></div>
+        <h6 class="fw-semibold mb-1" style="color:var(--text-primary)">{{ item.frame_name }}</h6>
+        <p class="text-secondary small mb-1">{{ item.frame_type }}</p>
+        <p class="text-secondary" style="font-size:.72rem">{{ item.rim_type }}</p>
+        <p class="text-secondary" style="font-size:.7rem"><i class="bi bi-calendar me-1"></i>{{ item.added_at.strftime('%d %b %Y') }}</p>
+        <div class="d-flex gap-1 justify-content-center flex-wrap">
+          {% for store, icon, color in [('Lenskart','bag','primary'),('Specsmakers','shop','info'),('Titan Eye+','gem','warning'),('John Jacobs','award','success')] %}
+          <a href="https://www.{{ store.lower().replace(' ','').replace('+','plus').replace('jacobs','jacobs') }}.com/search?q={{ item.frame_type|urlencode }}"
+             target="_blank" class="btn btn-xs btn-outline-{{ color }}" style="font-size:.65rem;padding:2px 6px">{{ store }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card-footer border-secondary d-flex gap-2">
+        <div class="form-check mb-0"><input class="form-check-input compare-check" type="checkbox" value="{{ item.id }}" id="cmp{{ item.id }}"><label class="form-check-label text-secondary small" for="cmp{{ item.id }}">Compare</label></div>
+        <button class="btn btn-sm btn-outline-danger ms-auto" onclick="removeWishlist({{ item.id }})"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Compare Modal -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content ">
+      <div class="modal-header" style="border-color:var(--border-subtle)">
+        <h5 class="modal-title fw-bold"><i class="bi bi-columns-gap me-2"></i>Frame Comparison</h5>
+        <button type="button" class="btn-close btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="compareBody"></div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card card-dark">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-heart display-4 text-secondary"></i>
+    <h5 mt-3">Your wishlist is empty</h5>
+    <p class="text-secondary">Visit the Frame Finder to discover and save frames you love</p>
+    <a href="{{ url_for('frame_finder') }}" class="btn btn-primary"><i class="bi bi-magic me-1"></i>Find Frames</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/frame_finder.js') }}"></script>
+<script>
+// Render SVGs for wishlist items
+const wishlistItems = [
+  {% for item in items %}
+  {id: {{ item.id }}, name: '{{ item.frame_name }}', type: '{{ item.frame_type }}'},
+  {% endfor %}
+];
+wishlistItems.forEach(item => {
+  const container = document.getElementById('svgContainer' + item.id);
+  if (container) container.innerHTML = getFrameSVG(item.type, '#6366f1', 80, 48);
+});
+
+function removeWishlist(id) {
+  fetch(`/api/wishlist/remove/${id}`, {method:'DELETE'})
+    .then(r => r.json()).then(res => {
+      if (res.success) {
+        document.getElementById('witem' + id).remove();
+      }
+    });
+}
+
+function compareSelected() {
+  const checked = [...document.querySelectorAll('.compare-check:checked')].map(c => c.value);
+  if (checked.length < 2) { alert('Select at least 2 frames to compare.'); return; }
+  if (checked.length > 3) { alert('Select up to 3 frames to compare.'); return; }
+  const items = wishlistItems.filter(i => checked.includes(String(i.id)));
+  let html = '<div class="row g-3">';
+  items.forEach(item => {
+    html += `<div class="col">
+      <div class="card style="background:var(--bg-elevated)" border-secondary text-center p-3">
+        <div class="d-flex justify-content-center mb-3">${getFrameSVG(item.type, '#6366f1', 120, 70)}</div>
+        <h6 class="fw-bold">${item.name}</h6>
+        <p class="text-secondary small">${item.type}</p>
+        <div class="d-flex flex-wrap gap-1 justify-content-center">
+          <a href="https://www.lenskart.com/search?q=${encodeURIComponent(item.type)}" target="_blank" class="btn btn-xs btn-outline-primary" style="font-size:.7rem">Lenskart</a>
+          <a href="https://www.specsmakers.in/search?q=${encodeURIComponent(item.type)}" target="_blank" class="btn btn-xs btn-outline-info" style="font-size:.7rem">Specsmakers</a>
+          <a href="https://www.titaneyeplus.com/search?q=${encodeURIComponent(item.type)}" target="_blank" class="btn btn-xs btn-outline-warning" style="font-size:.7rem">Titan Eye+</a>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('compareBody').innerHTML = html;
+  new bootstrap.Modal(document.getElementById('compareModal')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Frame Finder — Oculux{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-magic me-2 text-primary"></i>AI Frame Finder</h4>
+    <p class="text-secondary small mb-0">Face-shape detection + AI-powered frame recommendations</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Step 1: Face Shape -->
+  <div class="col-lg-5">
+    <div class="card card-dark h-100">
+      <div class="card-header-dark">
+        <span class="fw-semibold"><span class="badge bg-primary me-2">1</span>Detect Face Shape</span>
+      </div>
+      <div class="card-body">
+        <!-- Camera feed -->
+        <div class="camera-container mb-3" id="cameraContainer">
+          <video id="cameraFeed" autoplay muted playsinline style="display:none"></video>
+          <canvas id="cameraCanvas"></canvas>
+          <div id="cameraPlaceholder" class="camera-placeholder">
+            <i class="bi bi-camera-fill fs-2 text-secondary mb-2"></i>
+            <p class="text-secondary small">Camera preview will appear here</p>
+          </div>
+          <div id="faceShapeOverlay" class="face-shape-overlay d-none">
+            <div class="face-oval"></div>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-outline-primary flex-fill" id="startCameraBtn" onclick="startCamera()"><i class="bi bi-camera me-1"></i>Start Camera</button>
+          <button class="btn btn-success flex-fill d-none" id="captureBtn" onclick="captureAndDetect()"><i class="bi bi-zoom-in me-1"></i>Detect Shape</button>
+        </div>
+
+        <!-- Manual selection -->
+        <div class="or-divider"><span>or select manually</span></div>
+        <p class="text-secondary small text-center mt-3 mb-2">Choose your face shape:</p>
+        <div class="face-shape-grid" id="faceShapeGrid">
+          {% set shapes = [('oval','Oval','🥚'),('round','Round','⭕'),('square','Square','⬜'),('heart','Heart','♥️'),('oblong','Oblong','🔲')] %}
+          {% for val,name,icon in shapes %}
+          <div class="face-shape-option" onclick="selectFaceShape('{{val}}')" data-shape="{{val}}">
+            <span style="font-size:1.4rem">{{icon}}</span>
+            <div class="small text-secondary mt-1">{{name}}</div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div id="detectedShape" class="alert alert-primary d-none mt-3 py-2 text-center">
+          <strong>Face shape:</strong> <span id="shapeLabel">—</span>
+        </div>
+
+        <button class="btn btn-primary w-100 mt-3 fw-semibold" id="getRecommendBtn" onclick="getRecommendation()" disabled>
+          <i class="bi bi-stars me-1"></i>Get AI Recommendation
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Recommendations -->
+  <div class="col-lg-7">
+    <!-- Loading shimmer -->
+    <div id="aiLoading" class="d-none">
+      <div class="card card-dark mb-3"><div class="card-body"><div class="shimmer-line w-75 mb-2"></div><div class="shimmer-line w-50 mb-2"></div><div class="shimmer-line w-90"></div></div></div>
+      <div class="card card-dark mb-3"><div class="card-body"><div class="shimmer-line w-60 mb-2"></div><div class="shimmer-line w-80 mb-2"></div></div></div>
+    </div>
+
+    <!-- Best Match -->
+    <div id="bestMatchCard" class="d-none mb-3">
+      <div class="card border-primary" style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(99,102,241,.04))">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="badge bg-primary fs-6 px-3 py-2">✨ Best Match</span>
+            <span class="text-secondary small ms-auto">AI Recommendation</span>
+          </div>
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <div id="bestFrameSvg" style="width:100px;height:60px"></div>
+            </div>
+            <div class="col">
+              <h5 fw-bold mb-1" id="bestFrameName">—</h5>
+              <p class="text-secondary small mb-1" id="bestRimType">—</p>
+              <p class="small mb-0" style="color:var(--text-primary)" id="aiReason">—</p>
+            </div>
+          </div>
+          <div class="mt-3 p-2 rounded" style="background:rgba(15,23,42,.04)">
+            <p class="text-secondary small mb-1"><i class="bi bi-lightbulb me-1 text-warning"></i><strong style="color:var(--text-primary)">Lens tip:</strong></p>
+            <p class="text-secondary small mb-0" id="lensRec">—</p>
+          </div>
+          <p class="text-info small mt-2 mb-0"><i class="bi bi-palette me-1"></i><span id="styleTip">—</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame type scores -->
+    <div id="scoreGridCard" class="card card-dark mb-3 d-none">
+      <div class="card-header-dark"><span class="fw-semibold"><i class="bi bi-grid me-2 text-info"></i>Frame Fit Scores — All Types</span></div>
+      <div class="card-body">
+        <div id="frameScoreGrid" class="row g-2"></div>
+      </div>
+    </div>
+
+    <!-- Browse all frames gallery -->
+    <div id="frameGallery" class="card card-dark d-none">
+      <div class="card-header-dark d-flex align-items-center justify-content-between">
+        <span class="fw-semibold"><i class="bi bi-collection me-2 text-warning"></i>Browse All Frames</span>
+        <span class="text-secondary small">8 styles</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-2" id="frameGalleryGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const wishlistIds = {{ wishlist_ids }};
+const latestRx = {
+  sph_re: {{ latest_rx.sph_re if latest_rx and latest_rx.sph_re else 'null' }},
+  sph_le: {{ latest_rx.sph_le if latest_rx and latest_rx.sph_le else 'null' }},
+  cyl: {{ latest_rx.cyl_re if latest_rx and latest_rx.cyl_re else 'null' }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/frame_finder.js') }}"></script>
+{% endblock %}
